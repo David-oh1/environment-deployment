@@ -24,10 +24,60 @@ resource "aws_route_table" "rt-public-002"{
   }
 }
 
+variable "public_cidr_blocks" {
+  # Assign a number to each AZ letter used in our configuration
+  default = {
+    0 = "10.0.1.0/20"
+    1 = "10.0.2.0/20"
+    2 = "10.0.3.0/20"
+  }
+}
+
+variable "private_cidr_blocks" {
+  # Assign a number to each AZ letter used in our configuration
+  default = {
+    1 = "10.0.101.0/20"
+    2 = "10.0.102.0/20"
+    3 = "10.0.103.0/20"
+  }
+}
+
+resource "aws_subnet" "david-pub-subnet-test-002-1" {
+  count = var.subnet_count
+  vpc_id = aws_vpc.david-vpc-test-002.id
+  cidr_block = public_cidr_blocks[count.index]
+  map_public_ip_on_launch = "true"
+  availability_zone = az_list[count.index]
+  tags = {
+    Name = "pub-subnet-${count.index}-${var.suffix}"
+  }	
+}
+
 #create Public subnet
+# number of subnets created is driven by a variable min 2 / max 3
 resource "aws_subnet" "david-pub-subnet-test-002-1" {
   vpc_id = aws_vpc.david-vpc-test-002.id
-  cidr_block = "10.0.1.0/24"
+  cidr_block = public_cidr_blocks[1]
+  map_public_ip_on_launch = "true"
+  availability_zone = "us-east-1a"
+  tags = {
+    Name = "david-pub-subnet-002-1"
+  }	
+}
+
+resource "aws_subnet" "david-pub-subnet-test-002-2" {
+  vpc_id = aws_vpc.david-vpc-test-002.id
+  cidr_block = public_cidr_blocks[2]
+  map_public_ip_on_launch = "true"
+  availability_zone = "us-east-1a"
+  tags = {
+    Name = "david-pub-subnet-002-1"
+  }	
+}
+
+resource "aws_subnet" "david-pub-subnet-test-002-3" {
+  vpc_id = aws_vpc.david-vpc-test-002.id
+  cidr_block =public_cidr_blocks[3]
   map_public_ip_on_launch = "true"
   availability_zone = "us-east-1a"
   tags = {
