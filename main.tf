@@ -1,3 +1,5 @@
+#TODO: Change all hardcoded inputs to dynamic - region, cidrblocks, availability zones, 
+
 terraform {
   required_providers {
     aws = {
@@ -40,6 +42,7 @@ resource "aws_route_table" "rt-public-002"{
   }
 }
 
+#TODO: create 3 pub and 3 priv subnets in different AZ's
 #create Public subnet
 resource "aws_subnet" "david-pub-subnet-test-002" {
   vpc_id = aws_vpc.david-vpc-test-002.id
