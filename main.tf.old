@@ -1,0 +1,128 @@
+#TODO: change to AWS backend either s3/dynamo
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.16"
+    }
+  }
+
+  required_version = ">= 1.2.0"
+}
+
+# Configure the AWS provider
+provider "aws" {
+  #TODO: variable for region
+  region = "us-east-1"
+}
+
+#TODO: Split all resources out into their own modules.  All modules should have their own
+# main.tf, variables.tf, outputs.tf
+# pass data from modules using the outputs from other modules
+
+#TODO: all resource names should use a dynamic suffix like vpc-${suffix}
+#TODO: review additional VPC arguments and determine if we have any additional we should enable
+#TODO: Setup VPC Flow logs to both s3 and cloudwatch
+#Create the VPC
+resource "aws_vpc" "david-vpc-test-002" {
+  cidr_block = "10.0.0.0/16"
+  tags = {
+    Name = "david-vpc-test-002"
+  }
+}
+
+#Create internet gateway
+resource "aws_internet_gateway" "internet-gateway-002"{
+  vpc_id = aws_vpc.david-vpc-test-002.id
+}
+
+#create route table for pub subnet
+resource "aws_route_table" "rt-public-002"{
+  vpc_id = aws_vpc.david-vpc-test-002.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.internet-gateway-002.id
+  }
+  #TODO: Tags should be a common set of tags with sane defaults and allow for overrides via a variable file.
+  # terraform.provider.aws.default_tags should be tags that the Administrator would decide (i.e. Environment)
+  # var.application_owner_tags should be the tag the application owner would decide (i.e. Application Name)
+  tags = {
+    Name = "public-rt-002"
+  }
+}
+
+#TODO: Create at least 3 private and 3 public subnets all in different AZs
+
+#create Public subnet
+resource "aws_subnet" "david-pub-subnet-test-002-1" {
+  vpc_id = aws_vpc.david-vpc-test-002.id
+  cidr_block = "10.0.1.0/24" # TODO: use a function to define subnet ranges base on cidrblock, not hardcoding them
+  map_public_ip_on_launch = "true" # This CAN remain hard-coded for all Public Subnets
+  availability_zone = "us-east-1a" # TODO: set AZs dynamically, shouldn't be hardcoded
+  tags = {
+    Name = "david-pub-subnet-002-1"
+  }	
+}
+
+
+#create Public subnet
+resource "aws_subnet" "david-pub-subnet-test-002-2" {
+  vpc_id = aws_vpc.david-vpc-test-002.id
+  cidr_block = "10.0.3.0/24" # TODO: use a function to define subnet ranges base on cidrblock, not hardcoding them
+  map_public_ip_on_launch = "true" 
+  availability_zone = "us-east-1b" # TODO: set AZs dynamically, shouldn't be hardcoded
+  tags = {
+    Name = "david-pub-subnet-002-2"
+  }	
+}
+
+#associate public subnet with route table
+resource "aws_route_table_association" "pub-subnet-rt-002"{
+  subnet_id = aws_subnet.david-pub-subnet-test-002.id
+  route_table_id = aws_route_table.rt-public-002.id
+}
+
+#create Elastic IP
+resource "aws_eip" "eip-nat-002"{
+  vpc = true
+  tags = {
+    Name = "test-eip-002"
+  }
+}
+
+#create NAT Gateway
+resource "aws_nat_gateway" "nat-gateway-002"{
+  allocation_id = aws_eip.eip-nat-002.id
+  subnet_id = aws_subnet.david-pub-subnet-test-002.id
+  depends_on = [aws_internet_gateway.internet-gateway-002]
+}
+
+#create route table for private subnet
+resource "aws_route_table" "priv-rt-002" {
+  vpc_id = aws_vpc.david-vpc-test-002.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat-gateway-002.id
+  }
+  tags = {
+    Name = "private-rt-002"
+  }
+}
+
+#create private subnet
+resource "aws_subnet" "david-priv-subnet-test-002" {
+  vpc_id = aws_vpc.david-vpc-test-002.id
+  cidr_block = "10.0.2.0/24"
+  availability_zone = "us-east-1a"
+  tags = {
+    Name = "david-priv-subnet-002"
+  }
+}
+
+#associate private subnet with route table
+resource "aws_route_table_association" "priv-subnet-rt-002" {
+  subnet_id = aws_subnet.david-priv-subnet-test-002.id
+  route_table_id = aws_route_table.priv-rt-002.id
+}
